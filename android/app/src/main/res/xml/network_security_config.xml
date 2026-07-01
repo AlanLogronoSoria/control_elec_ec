@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuración de seguridad de red para producción.
+  Solo se permite tráfico HTTPS. Sin excepciones cleartext.
+
+  Dominios permitidos:
+  - cloud.appwrite.io (Appwrite Cloud API)
+  - control-electoral-ec.app (dominio de producción para deep links)
+-->
+<network-security-config>
+    <!-- Dominio Appwrite: solo HTTPS con certificados del sistema -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">cloud.appwrite.io</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Deep links de la aplicación -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">control-electoral-ec.app</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Política base: solo HTTPS, certificados del sistema -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
