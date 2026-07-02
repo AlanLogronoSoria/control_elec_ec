@@ -140,7 +140,7 @@ class SyncService {
         case 'update':
           await _handleUpdate(item, data, permissions);
         case 'delete':
-          await _handleDelete(item);
+          await _handleDelete(item, permissions);
         case 'file_upload':
           await _handleFileUpload(item, rawPayload);
       }
@@ -176,29 +176,43 @@ class SyncService {
     Map<String, dynamic> data,
     List<String>? permissions,
   ) async {
+    bool serverDocReadable = true;
+    dynamic serverDoc;
     try {
-      final serverDoc = await AppwriteService.instance.databases.getDocument(
+      serverDoc = await AppwriteService.instance.databases.getDocument(
         databaseId: AppConstants.appwriteDatabaseId,
         collectionId: item.collectionName,
         documentId: item.documentId,
       );
+    } on AppwriteException catch (e) {
+      if (e.code == 401 || e.code == 403) {
+        serverDocReadable = false;
+      } else if (e.code == 404) {
+        serverDocReadable = false;
+      } else {
+        rethrow;
+      }
+    }
 
-      final serverUpdatedAt = DateTime.tryParse(
-        serverDoc.data['updated_at']?.toString() ?? '',
-      );
-      final localUpdatedAt = DateTime.tryParse(
-        data['updated_at']?.toString() ?? '',
-      );
-
-      if (serverUpdatedAt != null &&
-          localUpdatedAt != null &&
-          serverUpdatedAt.isAfter(localUpdatedAt)) {
-        _logger.w(
-          '[SyncService] Conflicto: servidor más reciente para ${item.documentId}. '
-          'Descartando cambio local.',
+    try {
+      if (serverDocReadable && serverDoc != null) {
+        final serverUpdatedAt = DateTime.tryParse(
+          serverDoc.data['updated_at']?.toString() ?? '',
         );
-        await _db.offlineQueueDao.markSynced(item.id);
-        return;
+        final localUpdatedAt = DateTime.tryParse(
+          data['updated_at']?.toString() ?? '',
+        );
+
+        if (serverUpdatedAt != null &&
+            localUpdatedAt != null &&
+            serverUpdatedAt.isAfter(localUpdatedAt)) {
+          _logger.w(
+            '[SyncService] Conflicto: servidor más reciente para ${item.documentId}. '
+            'Descartando cambio local.',
+          );
+          await _db.offlineQueueDao.markSynced(item.id);
+          return;
+        }
       }
 
       await AppwriteService.instance.databases.updateDocument(
@@ -217,7 +231,8 @@ class SyncService {
     }
   }
 
-  Future<void> _handleDelete(OfflineQueueTableData item) async {
+  Future<void> _handleDelete(
+      OfflineQueueTableData item, List<String>? permissions) async {
     try {
       await AppwriteService.instance.databases.deleteDocument(
         databaseId: AppConstants.appwriteDatabaseId,
@@ -270,6 +285,9 @@ class SyncService {
       return;
     }
 
+    final rawPerms = payload['_permissions'];
+    final permissions = rawPerms is List ? rawPerms.cast<String>() : null;
+
     final uploaded = await AppwriteService.instance.storage.createFile(
       bucketId: AppConstants.storageActsBucketId,
       fileId: fileId,
@@ -277,6 +295,7 @@ class SyncService {
         path: localPath,
         filename: 'acta_$fileId.jpg',
       ),
+      permissions: permissions,
     );
 
     final photoUrl = '${AppConstants.appwriteEndpoint}/storage/buckets/'
@@ -341,12 +360,17 @@ class SyncService {
   Future<void> enqueueDelete({
     required String collectionName,
     required String documentId,
+    List<String>? permissions,
   }) async {
+    final wrappedPayload = <String, dynamic>{
+      '_data': <String, dynamic>{},
+      if (permissions != null) '_permissions': permissions,
+    };
     await _db.offlineQueueDao.enqueue(
       operation: 'delete',
       collectionName: collectionName,
       documentId: documentId,
-      payload: '{}',
+      payload: jsonEncode(wrappedPayload),
     );
   }
 
@@ -356,6 +380,7 @@ class SyncService {
     required String actId,
     required String fileId,
     required String localPath,
+    List<String>? permissions,
   }) async {
     await _db.offlineQueueDao.enqueue(
       operation: 'file_upload',
@@ -364,6 +389,7 @@ class SyncService {
       payload: jsonEncode({
         'act_id': actId,
         'local_path': localPath,
+        if (permissions != null) '_permissions': permissions,
       }),
     );
   }

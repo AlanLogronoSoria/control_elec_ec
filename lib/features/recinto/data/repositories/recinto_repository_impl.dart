@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/services/appwrite_service.dart';
 import '../../../../core/services/sync_service.dart';
 import '../../../authentication/data/models/user_model.dart';
 import '../../../authentication/domain/entities/user_entity.dart';

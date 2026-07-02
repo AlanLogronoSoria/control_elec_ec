@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../shared/widgets/app_scaffold.dart';
 import '../../domain/entities/acta_entity.dart';
 import '../providers/veedor_providers.dart';
 

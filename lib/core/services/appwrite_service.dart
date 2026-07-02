@@ -95,4 +95,11 @@ class AppwriteService {
         Permission.read(Role.user(newUserId)),
         Permission.update(Role.user(newUserId)),
       ];
+
+  /// Construye permisos para archivos en Storage. Mismos permisos que los
+  /// documentos asociados.
+  static List<String> permissionsFileForUser(String ownerUserId) => [
+        Permission.read(Role.user(ownerUserId)),
+        Permission.update(Role.user(ownerUserId)),
+      ];
 }

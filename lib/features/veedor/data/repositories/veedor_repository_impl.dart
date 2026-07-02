@@ -230,15 +230,19 @@ class VeedorRepositoryImpl implements VeedorRepository {
         collectionName: AppConstants.colActs,
         documentId: actId,
         payload: payload,
-        permissions: _buildVeedorPerms(),
+        permissions: await _buildVeedorPerms(),
       );
 
       // 5. Si no se subió la foto, encolar upload pendiente
       if (photoUrl == null) {
+        final userId = await _getCurrentUserId();
         await _syncService.enqueueFileUpload(
           actId: actId,
           fileId: photoId,
           localPath: localPath,
+          permissions: userId != null
+              ? AppwriteService.permissionsFileForUser(userId)
+              : null,
         );
       }
 
@@ -254,6 +258,11 @@ class VeedorRepositoryImpl implements VeedorRepository {
   /// Retorna la URL pública del archivo o lanza excepción si falla.
   Future<String> _uploadPhotoToStorage(
       String localPath, String photoId) async {
+    final userId = await _getCurrentUserId();
+    final permissions = userId != null
+        ? AppwriteService.permissionsFileForUser(userId)
+        : <String>[];
+
     final uploaded = await AppwriteService.instance.storage.createFile(
       bucketId: AppConstants.storageActsBucketId,
       fileId: photoId,
@@ -261,6 +270,7 @@ class VeedorRepositoryImpl implements VeedorRepository {
         path: localPath,
         filename: 'acta_$photoId.jpg',
       ),
+      permissions: permissions,
     );
 
     return '${AppConstants.appwriteEndpoint}/storage/buckets/'
@@ -393,15 +403,19 @@ class VeedorRepositoryImpl implements VeedorRepository {
         collectionName: AppConstants.colActs,
         documentId: acta.id,
         payload: payload,
-        permissions: _buildVeedorPerms(),
+        permissions: await _buildVeedorPerms(),
       );
 
       // Si nueva foto no se subió, encolar
       if (photoBytes != null && photoUrl == null && localPhotoPath != null) {
+        final userId = await _getCurrentUserId();
         await _syncService.enqueueFileUpload(
           actId: acta.id,
           fileId: localPhotoPath.split('/').last.replaceAll('.jpg', ''),
           localPath: localPhotoPath,
+          permissions: userId != null
+              ? AppwriteService.permissionsFileForUser(userId)
+              : null,
         );
       }
 
@@ -449,6 +463,34 @@ class VeedorRepositoryImpl implements VeedorRepository {
           gpsLongitude: actRow.gpsLongitude,
         ),
       );
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> getActVotesData(
+      String actId) async {
+    try {
+      final actRow = await _db.actsDao.getActById(actId);
+      if (actRow == null) {
+        return const Left(NotFoundFailure(message: 'Acta no encontrada.'));
+      }
+      final votesRows = await _db.actsDao.getVotesByAct(actId);
+      final extraVotes = await _db.actsDao.getExtraVotesByAct(actId);
+      return Right({
+        'act_id': actId,
+        'table_id': actRow.tableId,
+        'tipo_dignidad': actRow.tipoDignidad,
+        'estado': actRow.estado,
+        'votos': votesRows.map((v) => {
+              'candidate_id': v.candidateId,
+              'cantidad_votos': v.cantidadVotos,
+            }).toList(),
+        'votos_blancos': extraVotes?.votosBlancos ?? 0,
+        'votos_nulos': extraVotes?.votosNulos ?? 0,
+        'total_sufragantes': extraVotes?.totalSufragantes ?? 0,
+      });
     } catch (e) {
       return Left(CacheFailure(message: e.toString()));
     }

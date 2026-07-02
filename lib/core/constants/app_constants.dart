@@ -9,13 +9,13 @@ class AppConstants {
   // ── Appwrite Configuration ─────────────────────────────────────────────
   /// Endpoint del servidor Appwrite.
   /// Reemplaza con tu endpoint real: https://cloud.appwrite.io/v1
-  static const String appwriteEndpoint = 'https://cloud.appwrite.io/v1';
+  static const String appwriteEndpoint = 'https://nyc.cloud.appwrite.io/v1';
 
   /// ID del proyecto en Appwrite.
-  static const String appwriteProjectId = 'TU_PROJECT_ID_AQUI';
+  static const String appwriteProjectId = '6a45d7f90006381b65c3';
 
   /// ID de la base de datos en Appwrite.
-  static const String appwriteDatabaseId = 'electoral_db';
+  static const String appwriteDatabaseId = '6a45d891001f2abe7350';
 
   // ── Collection IDs ─────────────────────────────────────────────────────
   static const String colUsers = 'users';

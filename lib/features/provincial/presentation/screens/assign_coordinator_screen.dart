@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/provincial_entities.dart';
+import '../../domain/repositories/provincial_repository.dart';
 import '../providers/provincial_providers.dart';
 
 class AssignCoordinatorScreen extends ConsumerStatefulWidget {

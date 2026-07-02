@@ -37,6 +37,8 @@ class UserModel {
 
   /// Construye un [UserModel] desde un documento Appwrite.
   factory UserModel.fromAppwrite(Map<String, dynamic> data) {
+    print("APPWRITE DATA = $data");
+    
     return UserModel(
       id: data['\$id'] as String,
       cedula: data['cedula'] as String,

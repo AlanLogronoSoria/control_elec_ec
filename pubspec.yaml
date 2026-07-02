@@ -75,9 +75,7 @@ dev_dependencies:
   drift_dev: ^2.20.3
   mockito: ^5.4.4
 
-dependency_overrides:
-  flutter_web_auth_2: ^4.0.0
-  flutter_web_auth_2_platform_interface: ^4.0.0
+
 
 flutter:
   uses-material-design: true
