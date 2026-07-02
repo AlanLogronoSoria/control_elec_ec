@@ -3,9 +3,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/usecases/recinto_usecases.dart';
 import '../providers/recinto_providers.dart';
+import '../../../veedor/presentation/providers/veedor_providers.dart';
 
 class VeedorManagementScreen extends ConsumerWidget {
   const VeedorManagementScreen({super.key});
@@ -60,7 +63,7 @@ class VeedorManagementScreen extends ConsumerWidget {
                     trailing: PopupMenuButton<String>(
                       onSelected: (val) {
                         if (val == 'asignar') {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flujo de asignación de mesa en desarrollo')));
+                          _showAssignTableDialog(context, ref, v.user.id);
                         }
                       },
                       itemBuilder: (context) => [
@@ -78,12 +81,124 @@ class VeedorManagementScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Creación de Veedor en desarrollo')));
-        },
+        onPressed: () => context.push('/recinto/dashboard/crear-veedor'),
         icon: const Icon(Icons.person_add),
         label: const Text('Nuevo Veedor'),
       ),
+    );
+  }
+
+  void _showAssignTableDialog(
+      BuildContext context, WidgetRef ref, String veedorId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _AssignTableDialog(veedorId: veedorId),
+    );
+  }
+}
+
+class _AssignTableDialog extends ConsumerStatefulWidget {
+  const _AssignTableDialog({required this.veedorId});
+  final String veedorId;
+
+  @override
+  ConsumerState<_AssignTableDialog> createState() => _AssignTableDialogState();
+}
+
+class _AssignTableDialogState extends ConsumerState<_AssignTableDialog> {
+  late Future<List<ElectoralTablesTableData>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _loadTables();
+  }
+
+  Future<List<ElectoralTablesTableData>> _loadTables() async {
+    final db = ref.read(appDatabaseProvider);
+    final allTables = await db.precinctsDao.getAllTables();
+    return allTables.where((t) => t.veedorId == null).toList();
+  }
+
+  Future<void> _assign(String tableId) async {
+    final useCase = ref.read(assignTableUseCaseProvider);
+    final result = await useCase(tableId: tableId, veedorId: widget.veedorId);
+    if (mounted) {
+      result.fold(
+        (f) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(f.message), backgroundColor: AppColors.danger),
+        ),
+        (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mesa asignada exitosamente.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.pop(context);
+        },
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Asignar Mesa al Veedor'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: FutureBuilder<List<ElectoralTablesTableData>>(
+          future: _future,
+          builder: (_, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            final tables = snapshot.data ?? [];
+            if (tables.isEmpty) {
+              return const Text('No hay mesas disponibles para asignar.',
+                  style: TextStyle(color: AppColors.textHint));
+            }
+            return ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: tables.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final t = tables[i];
+                  return ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AppColors.primaryLight,
+                      child: Text('${t.jrvNumber}',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 11)),
+                    ),
+                    title: Text('JRV #${t.jrvNumber}',
+                        style: const TextStyle(fontSize: 13)),
+                    trailing: TextButton(
+                      onPressed: () => _assign(t.id),
+                      child: const Text('Asignar', style: TextStyle(fontSize: 12)),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
     );
   }
 }

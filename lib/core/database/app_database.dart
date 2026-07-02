@@ -52,8 +52,8 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
-          // Seed datos iniciales de organizaciones políticas
           await _seedOrganizations();
+          await _seedPrecincts();
         },
         onUpgrade: (m, from, to) async {
           // Futuras migraciones irán aquí
@@ -179,6 +179,84 @@ class AppDatabase extends _$AppDatabase {
               org.id.startsWith('alcalde') ? 'alcalde' : 'prefecto',
         ),
       );
+    }
+  }
+
+  /// Seed de recintos electorales con mesas JRV automáticas.
+  ///
+  /// 5 recintos reales del Ecuador con sus respectivas mesas electorales.
+  Future<void> _seedPrecincts() async {
+    final now = DateTime.now();
+
+    const precincts = [
+      (
+        id: 'recinto_1',
+        provincia: 'Pichincha',
+        canton: 'Quito',
+        parroquia: 'La Mariscal',
+        nombreRecinto: 'Colegio Nacional Mejía',
+        numeroJrv: 20,
+      ),
+      (
+        id: 'recinto_2',
+        provincia: 'Guayas',
+        canton: 'Guayaquil',
+        parroquia: 'Tarqui',
+        nombreRecinto: 'Unidad Educativa Vicente Rocafuerte',
+        numeroJrv: 25,
+      ),
+      (
+        id: 'recinto_3',
+        provincia: 'Azuay',
+        canton: 'Cuenca',
+        parroquia: 'El Sagrario',
+        nombreRecinto: 'Escuela República de Chile',
+        numeroJrv: 15,
+      ),
+      (
+        id: 'recinto_4',
+        provincia: 'Manabí',
+        canton: 'Portoviejo',
+        parroquia: 'Portoviejo',
+        nombreRecinto: 'Colegio Olmedo',
+        numeroJrv: 18,
+      ),
+      (
+        id: 'recinto_5',
+        provincia: 'Tungurahua',
+        canton: 'Ambato',
+        parroquia: 'La Matriz',
+        nombreRecinto: 'Instituto Superior Bolívar',
+        numeroJrv: 12,
+      ),
+    ];
+
+    for (final p in precincts) {
+      await into(precinctsTable).insertOnConflictUpdate(
+        PrecinctsTableCompanion.insert(
+          id: p.id,
+          provincia: p.provincia,
+          canton: p.canton,
+          parroquia: p.parroquia,
+          nombreRecinto: p.nombreRecinto,
+          numeroJrv: p.numeroJrv,
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+
+      for (int i = 1; i <= p.numeroJrv; i++) {
+        await into(electoralTablesTable).insertOnConflictUpdate(
+          ElectoralTablesTableCompanion.insert(
+            id: '${p.id}_jrv_$i',
+            jrvNumber: i,
+            precinctId: p.id,
+            estadoActa: const Value('pendiente'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+      }
     }
   }
 }

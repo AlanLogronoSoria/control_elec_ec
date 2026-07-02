@@ -8,16 +8,14 @@
 /// 5. Validar sumas y guardar.
 library;
 
-import 'dart:typed_data';
+  import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
 import '../../../../core/services/gps_service.dart';
 import '../../domain/entities/acta_entity.dart';
-import '../../domain/repositories/veedor_repository.dart';
 import '../providers/veedor_providers.dart';
 import 'photo_capture_screen.dart';
 
@@ -70,7 +68,7 @@ class _ActRegistrationScreenState extends ConsumerState<ActRegistrationScreen> {
       _errorMessage = null;
     });
 
-    final repo = sl<VeedorRepository>();
+    final repo = ref.read(veedorRepositoryProvider);
     final result = await repo.getFormularioForDignidad(_selectedDignidad);
 
     result.fold(
@@ -95,7 +93,7 @@ class _ActRegistrationScreenState extends ConsumerState<ActRegistrationScreen> {
 
   Future<void> _captureGps() async {
     try {
-      final gps = sl<GpsService>();
+      final gps = ref.read(gpsServiceProvider);
       final position = await gps.getCurrentPosition();
       setState(() {
         _gpsLatitude = position.latitude;

@@ -6,9 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
 import '../../domain/entities/recinto_entities.dart';
-import '../../domain/usecases/recinto_usecases.dart';
+import '../providers/recinto_providers.dart';
 
 class AssignVeedorScreen extends ConsumerStatefulWidget {
   const AssignVeedorScreen({
@@ -36,7 +35,7 @@ class _AssignVeedorScreenState extends ConsumerState<AssignVeedorScreen> {
 
   Future<void> _loadVeedores() async {
     setState(() => _loading = true);
-    final useCase = sl<GetVeedoresUseCase>();
+    final useCase = ref.read(getVeedoresUseCaseProvider);
     final result = await useCase();
     result.fold(
       (_) {},
@@ -48,7 +47,7 @@ class _AssignVeedorScreenState extends ConsumerState<AssignVeedorScreen> {
   }
 
   Future<void> _assign(String veedorId) async {
-    final useCase = sl<AssignTableUseCase>();
+    final useCase = ref.read(assignTableUseCaseProvider);
     final result = await useCase(tableId: widget.tableId, veedorId: veedorId);
     result.fold(
       (failure) {

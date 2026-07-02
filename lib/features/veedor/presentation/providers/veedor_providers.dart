@@ -3,8 +3,23 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/injection_container.dart';
+import '../../../../core/services/gps_service.dart';
+import '../../../../core/database/app_database.dart';
 import '../../domain/entities/acta_entity.dart';
+import '../../domain/repositories/veedor_repository.dart';
 import '../../domain/usecases/veedor_usecases.dart';
+
+final veedorRepositoryProvider = Provider<VeedorRepository>((ref) {
+  return sl<VeedorRepository>();
+});
+
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  return sl<AppDatabase>();
+});
+
+final gpsServiceProvider = Provider<GpsService>((ref) {
+  return sl<GpsService>();
+});
 
 // ── Casos de uso ─────────────────────────────────────────────────────────
 

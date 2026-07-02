@@ -12,10 +12,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
-import '../../../../core/database/app_database.dart';
 import '../../../veedor/domain/entities/acta_entity.dart';
-import '../../../veedor/domain/repositories/veedor_repository.dart';
+import '../../../veedor/presentation/providers/veedor_providers.dart';
 import '../../../veedor/presentation/widgets/validation_summary.dart';
 
 class ActCorrectionScreen extends ConsumerStatefulWidget {
@@ -30,8 +28,6 @@ class ActCorrectionScreen extends ConsumerStatefulWidget {
 
 class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _db = sl<AppDatabase>();
-  final _repo = sl<VeedorRepository>();
   final _picker = ImagePicker();
 
   bool _loading = true;
@@ -69,7 +65,7 @@ class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final row = await _db.actsDao.getActById(widget.actId);
+      final row = await ref.read(appDatabaseProvider).actsDao.getActById(widget.actId);
       if (row == null) {
         setState(() {
           _loading = false;
@@ -79,11 +75,11 @@ class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
       }
       _actRow = row;
 
-      final forms = await _db.actsDao.getOrganizationsByDignidad(row.tipoDignidad);
+      final forms = await ref.read(appDatabaseProvider).actsDao.getOrganizationsByDignidad(row.tipoDignidad);
       final fields = <OrganizacionFormEntity>[];
       for (final org in forms) {
         final candidates =
-            await _db.actsDao.getCandidatesByOrganization(org.id);
+            await ref.read(appDatabaseProvider).actsDao.getCandidatesByOrganization(org.id);
         if (candidates.isNotEmpty) {
           fields.add(OrganizacionFormEntity(
             organizationId: org.id,
@@ -97,7 +93,7 @@ class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
       _formFields = fields;
 
       // Cargar votos existentes
-      final existingVotes = await _db.actsDao.getVotesByAct(row.id);
+      final existingVotes = await ref.read(appDatabaseProvider).actsDao.getVotesByAct(row.id);
       for (final field in fields) {
         final existing = existingVotes
             .where((v) => v.candidateId == field.candidateId)
@@ -108,7 +104,7 @@ class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
       }
 
       // Cargar extra votos
-      final extras = await _db.actsDao.getExtraVotesByAct(row.id);
+      final extras = await ref.read(appDatabaseProvider).actsDao.getExtraVotesByAct(row.id);
       _blancosController.text = '${extras?.votosBlancos ?? 0}';
       _nulosController.text = '${extras?.votosNulos ?? 0}';
       _sufragantesController.text = '${extras?.totalSufragantes ?? 0}';
@@ -134,7 +130,7 @@ class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
       setState(() => _analyzingPhoto = true);
 
       final bytes = await photo.readAsBytes();
-      final blurResult = await _repo.isImageBlurry(bytes);
+      final blurResult = await ref.read(veedorRepositoryProvider).isImageBlurry(bytes);
 
       blurResult.fold(
         (failure) {
@@ -216,7 +212,7 @@ class _ActCorrectionScreenState extends ConsumerState<ActCorrectionScreen> {
       gpsLongitude: _actRow!.gpsLongitude,
     );
 
-    final result = await _repo.correctActa(updatedActa,
+    final result = await ref.read(veedorRepositoryProvider).correctActa(updatedActa,
         photoBytes: _newPhotoBytes);
 
     result.fold(

@@ -4,12 +4,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
-import '../../../../core/database/app_database.dart';
-
+import '../providers/provincial_providers.dart';
 
 class CreatePrecinctScreen extends ConsumerStatefulWidget {
   const CreatePrecinctScreen({super.key});
@@ -38,32 +35,30 @@ class _CreatePrecinctScreenState extends ConsumerState<CreatePrecinctScreen> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final db = sl<AppDatabase>();
-    final id = const Uuid().v4();
-
-    await db.precinctsDao.upsertPrecinct(PrecinctsTableCompanion.insert(
-      id: id,
+    final useCase = ref.read(createPrecinctUseCaseProvider);
+    final result = await useCase(
       provincia: _provinciaController.text.trim(),
       canton: _cantonController.text.trim(),
       parroquia: _parroquiaController.text.trim(),
       nombreRecinto: _nombreController.text.trim(),
       numeroJrv: _numeroJrv,
-    ));
-
-    // Generar mesas electorales automáticamente (1..numeroJrv)
-    await db.precinctsDao.createTablesForPrecinct(
-      precinctId: id,
-      numeroJrv: _numeroJrv,
     );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Recinto creado con $_numeroJrv mesa(s) electoral(es)'),
-          backgroundColor: AppColors.success,
+      result.fold(
+        (f) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(f.message), backgroundColor: AppColors.danger),
         ),
+        (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Recinto creado con $_numeroJrv mesa(s) electoral(es)'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          context.pop();
+        },
       );
-      context.pop();
     }
   }
 

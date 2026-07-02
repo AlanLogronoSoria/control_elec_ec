@@ -25,6 +25,7 @@ import 'features/provincial/presentation/screens/precinct_list_screen.dart';
 import 'features/provincial/presentation/screens/create_precinct_screen.dart';
 import 'features/provincial/presentation/screens/create_coordinator_screen.dart';
 import 'features/provincial/presentation/screens/assign_coordinator_screen.dart';
+import 'features/provincial/presentation/screens/provincial_act_detail_screen.dart';
 
 import 'features/veedor/presentation/screens/act_detail_screen.dart';
 
@@ -111,6 +112,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return ActDetailScreen(actId: actId, tableId: tableId);
             },
           ),
+          GoRoute(
+            path: 'corregir/:actId',
+            builder: (context, state) {
+              final actId = state.pathParameters['actId']!;
+              return ActCorrectionScreen(actId: actId);
+            },
+          ),
         ],
       ),
 
@@ -165,6 +173,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'asignar-coordinador',
             builder: (context, state) => const AssignCoordinatorScreen(),
+          ),
+          GoRoute(
+            path: 'acta/:actId',
+            builder: (context, state) {
+              final actId = state.pathParameters['actId']!;
+              return ProvincialActDetailScreen(actId: actId);
+            },
           ),
         ],
       ),

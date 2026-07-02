@@ -4,9 +4,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/services/injection_container.dart';
-import '../../domain/repositories/veedor_repository.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/acta_entity.dart';
+import '../providers/veedor_providers.dart';
 
 class ActDetailScreen extends ConsumerStatefulWidget {
   const ActDetailScreen({super.key, required this.actId, required this.tableId});
@@ -29,7 +29,7 @@ class _ActDetailScreenState extends ConsumerState<ActDetailScreen> {
   }
 
   Future<void> _load() async {
-    final repo = sl<VeedorRepository>();
+    final repo = ref.read(veedorRepositoryProvider);
     final result = await repo.getActa(widget.tableId, 'alcalde');
     result.fold(
       (_) {},

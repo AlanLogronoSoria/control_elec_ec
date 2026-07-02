@@ -146,6 +146,7 @@ class AuthRepositoryImpl implements AuthRepository {
           collectionId: AppConstants.colUsers,
           documentId: userId,
           data: {'password_changed': true},
+          permissions: AppwriteService.permissionsUserDocument(userId),
         );
 
         // 3. Actualizar Drift local
@@ -357,6 +358,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'email_verified': false,
           if (precinctId != null) 'precinct_id': precinctId,
         },
+        permissions: AppwriteService.permissionsUserDocument(userId),
       );
 
       // 2. Guardar en Drift local (antes del switch de sesión)

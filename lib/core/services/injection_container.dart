@@ -132,4 +132,9 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton(() => GetResumenGlobalUseCase(sl()));
   sl.registerLazySingleton(() => AssignCoordinatorToPrecinctUseCase(sl()));
+  sl.registerLazySingleton(() => GetAvancePorRecintoUseCase(sl()));
+  sl.registerLazySingleton(() => GetActaDetailUseCase(sl()));
+  sl.registerLazySingleton(() => CreatePrecinctUseCase(sl()));
+  sl.registerLazySingleton(() => GetAllPrecinctsUseCase(sl()));
+  sl.registerLazySingleton(() => GetCoordinadoresRecintoUseCase(sl()));
 }

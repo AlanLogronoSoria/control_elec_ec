@@ -8,8 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
-import '../../domain/repositories/veedor_repository.dart';
+import '../providers/veedor_providers.dart';
 
 class PhotoCaptureScreen extends ConsumerStatefulWidget {
   const PhotoCaptureScreen({
@@ -48,7 +47,7 @@ class _PhotoCaptureScreenState extends ConsumerState<PhotoCaptureScreen> {
       });
 
       final bytes = await photo.readAsBytes();
-      final repo = sl<VeedorRepository>();
+      final repo = ref.read(veedorRepositoryProvider);
       
       // Analizar desenfoque
       final blurResult = await repo.isImageBlurry(bytes);

@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
-import '../../../../core/database/app_database.dart';
+import '../../../veedor/presentation/providers/veedor_providers.dart';
 
 class TableListScreen extends ConsumerStatefulWidget {
   const TableListScreen({super.key, required this.precinctId});
@@ -29,7 +28,7 @@ class _TableListScreenState extends ConsumerState<TableListScreen> {
 
   Future<void> _loadTables() async {
     setState(() => _loading = true);
-    final db = sl<AppDatabase>();
+    final db = ref.read(appDatabaseProvider);
     final tables = await db.precinctsDao.getTablesByPrecinct(widget.precinctId);
     if (mounted) {
       setState(() {

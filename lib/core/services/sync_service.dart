@@ -125,17 +125,24 @@ class SyncService {
     await _db.offlineQueueDao.markProcessing(item.id);
 
     try {
-      final payload = jsonDecode(item.payload) as Map<String, dynamic>;
+      final rawPayload = jsonDecode(item.payload) as Map<String, dynamic>;
+      final data = (rawPayload['_data'] as Map<String, dynamic>?) ??
+          (rawPayload['data'] as Map<String, dynamic>?) ??
+          rawPayload;
+      final permissions = (rawPayload['_permissions'] as List?)
+              ?.map((p) => p.toString())
+              .toList() ??
+          (rawPayload['permissions'] as List?)?.map((p) => p.toString()).toList();
 
       switch (item.operation) {
         case 'create':
-          await _handleCreate(item, payload);
+          await _handleCreate(item, data, permissions);
         case 'update':
-          await _handleUpdate(item, payload);
+          await _handleUpdate(item, data, permissions);
         case 'delete':
           await _handleDelete(item);
         case 'file_upload':
-          await _handleFileUpload(item, payload);
+          await _handleFileUpload(item, rawPayload);
       }
 
       await _db.offlineQueueDao.markSynced(item.id);
@@ -152,40 +159,40 @@ class SyncService {
 
   Future<void> _handleCreate(
     OfflineQueueTableData item,
-    Map<String, dynamic> payload,
+    Map<String, dynamic> data,
+    List<String>? permissions,
   ) async {
     await AppwriteService.instance.databases.createDocument(
       databaseId: AppConstants.appwriteDatabaseId,
       collectionId: item.collectionName,
-      documentId: item.documentId, // UUID generado client-side (idempotente)
-      data: payload,
+      documentId: item.documentId,
+      data: data,
+      permissions: permissions,
     );
   }
 
   Future<void> _handleUpdate(
     OfflineQueueTableData item,
-    Map<String, dynamic> payload,
+    Map<String, dynamic> data,
+    List<String>? permissions,
   ) async {
     try {
-      // Intentar obtener el documento del servidor para verificar conflicto
       final serverDoc = await AppwriteService.instance.databases.getDocument(
         databaseId: AppConstants.appwriteDatabaseId,
         collectionId: item.collectionName,
         documentId: item.documentId,
       );
 
-      // Resolución de conflicto: Last-Write-Wins via updated_at
       final serverUpdatedAt = DateTime.tryParse(
         serverDoc.data['updated_at']?.toString() ?? '',
       );
       final localUpdatedAt = DateTime.tryParse(
-        payload['updated_at']?.toString() ?? '',
+        data['updated_at']?.toString() ?? '',
       );
 
       if (serverUpdatedAt != null &&
           localUpdatedAt != null &&
           serverUpdatedAt.isAfter(localUpdatedAt)) {
-        // El servidor tiene datos más recientes → servidor gana
         _logger.w(
           '[SyncService] Conflicto: servidor más reciente para ${item.documentId}. '
           'Descartando cambio local.',
@@ -198,12 +205,12 @@ class SyncService {
         databaseId: AppConstants.appwriteDatabaseId,
         collectionId: item.collectionName,
         documentId: item.documentId,
-        data: payload,
+        data: data,
+        permissions: permissions,
       );
     } on AppwriteException catch (e) {
       if (e.code == 404) {
-        // El documento no existe → crear
-        await _handleCreate(item, payload);
+        await _handleCreate(item, data, permissions);
       } else {
         rethrow;
       }
@@ -297,12 +304,17 @@ class SyncService {
     required String collectionName,
     required String documentId,
     required Map<String, dynamic> payload,
+    List<String>? permissions,
   }) async {
+    final wrappedPayload = <String, dynamic>{
+      '_data': payload,
+      if (permissions != null) '_permissions': permissions,
+    };
     await _db.offlineQueueDao.enqueue(
       operation: 'create',
       collectionName: collectionName,
       documentId: documentId,
-      payload: jsonEncode(payload),
+      payload: jsonEncode(wrappedPayload),
     );
   }
 
@@ -311,12 +323,17 @@ class SyncService {
     required String collectionName,
     required String documentId,
     required Map<String, dynamic> payload,
+    List<String>? permissions,
   }) async {
+    final wrappedPayload = <String, dynamic>{
+      '_data': payload,
+      if (permissions != null) '_permissions': permissions,
+    };
     await _db.offlineQueueDao.enqueue(
       operation: 'update',
       collectionName: collectionName,
       documentId: documentId,
-      payload: jsonEncode(payload),
+      payload: jsonEncode(wrappedPayload),
     );
   }
 

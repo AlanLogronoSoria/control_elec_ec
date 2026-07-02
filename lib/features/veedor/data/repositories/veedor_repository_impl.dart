@@ -41,6 +41,12 @@ class VeedorRepositoryImpl implements VeedorRepository {
   Future<String?> _getCurrentUserId() =>
       _secureStorage.read(key: 'current_user_id');
 
+  Future<List<String>> _buildVeedorPerms() async {
+    final userId = await _getCurrentUserId();
+    if (userId == null) return [];
+    return AppwriteService.permissionsVeedor(userId);
+  }
+
   @override
   Future<Either<Failure, List<MesaElectoralEntity>>> getAssignedTables() async {
     try {
@@ -224,6 +230,7 @@ class VeedorRepositoryImpl implements VeedorRepository {
         collectionName: AppConstants.colActs,
         documentId: actId,
         payload: payload,
+        permissions: _buildVeedorPerms(),
       );
 
       // 5. Si no se subió la foto, encolar upload pendiente
@@ -386,6 +393,7 @@ class VeedorRepositoryImpl implements VeedorRepository {
         collectionName: AppConstants.colActs,
         documentId: acta.id,
         payload: payload,
+        permissions: _buildVeedorPerms(),
       );
 
       // Si nueva foto no se subió, encolar

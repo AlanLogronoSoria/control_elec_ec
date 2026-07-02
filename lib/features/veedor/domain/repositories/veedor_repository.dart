@@ -50,4 +50,7 @@ abstract class VeedorRepository {
   
   /// Obtiene un acta específica si ya fue registrada.
   Future<Either<Failure, ActaElectoralEntity?>> getActa(String tableId, String dignidad);
+
+  /// Obtiene los votos extra de un acta para corrección.
+  Future<Either<Failure, Map<String, dynamic>>> getActVotesData(String actId);
 }

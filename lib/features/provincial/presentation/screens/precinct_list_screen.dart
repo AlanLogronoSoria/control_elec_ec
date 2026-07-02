@@ -6,70 +6,47 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/injection_container.dart';
-import '../../../../core/database/app_database.dart';
+import '../../domain/entities/provincial_entities.dart';
+import '../providers/provincial_providers.dart';
 
-
-class PrecinctListScreen extends ConsumerStatefulWidget {
+class PrecinctListScreen extends ConsumerWidget {
   const PrecinctListScreen({super.key});
 
   @override
-  ConsumerState<PrecinctListScreen> createState() => _PrecinctListScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listAsync = ref.watch(precinctListProvider);
 
-class _PrecinctListScreenState extends ConsumerState<PrecinctListScreen> {
-  List<PrecinctsTableData> _precincts = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final db = sl<AppDatabase>();
-    final list = await db.precinctsDao.getAllPrecincts();
-    if (mounted) {
-      setState(() {
-        _precincts = list;
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Recintos Electorales')),
       body: RefreshIndicator(
-        onRefresh: _load,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _precincts.isEmpty
-                ? const Center(child: Text('No hay recintos registrados.'))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _precincts.length,
-                    itemBuilder: (context, index) {
-                      final p = _precincts[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.provincialColor,
-                            child: const Icon(Icons.location_city, color: Colors.white, size: 20),
-                          ),
-                          title: Text(p.nombreRecinto,
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('${p.provincia} › ${p.canton} › ${p.parroquia}'),
-                          trailing: Text('JRV: ${p.numeroJrv}',
-                              style: const TextStyle(color: AppColors.textHint)),
+        onRefresh: () => ref.read(precinctListProvider.notifier).load(),
+        child: listAsync.when(
+          data: (list) => list.isEmpty
+              ? const Center(child: Text('No hay recintos registrados.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final p = list[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.provincialColor,
+                          child: const Icon(Icons.location_city, color: Colors.white, size: 20),
                         ),
-                      );
-                    },
-                  ),
+                        title: Text(p.precinctName,
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${p.provincia} › ${p.canton} › ${p.parroquia}'),
+                        trailing: Text('JRV: ${p.totalMesas}',
+                            style: const TextStyle(color: AppColors.textHint)),
+                      ),
+                    );
+                  },
+                ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(child: Text('Error: $err')),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/provincial/crear-recinto'),

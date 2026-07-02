@@ -6,7 +6,9 @@ library;
 
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:uuid/uuid.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/provincial_entities.dart';
@@ -115,6 +117,205 @@ class ProvincialRepositoryImpl implements ProvincialRepository {
         ),
       );
       return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<AvanceRecintoEntity>>>
+      getAvancePorRecinto() async {
+    try {
+      final precincts = await _db.precinctsDao.getAllPrecincts();
+      final result = <AvanceRecintoEntity>[];
+
+      for (final p in precincts) {
+        final tables =
+            await _db.precinctsDao.getTablesByPrecinct(p.id);
+        final completadas =
+            tables.where((t) => t.estadoActa == 'completado').length;
+        final totalMesas = tables.length;
+        final pendientes = totalMesas - completadas;
+
+        int votosAlcalde = 0;
+        int votosPrefecto = 0;
+
+        for (final table in tables) {
+          final acts =
+              await _db.actsDao.getActsByTable(table.id);
+          for (final act in acts.where(
+            (a) => a.estado == 'guardado' || a.estado == 'sincronizado',
+          )) {
+            final extra =
+                await _db.actsDao.getExtraVotesByAct(act.id);
+            if (extra != null) {
+              if (act.tipoDignidad == 'alcalde') {
+                votosAlcalde += extra.totalSufragantes;
+              } else if (act.tipoDignidad == 'prefecto') {
+                votosPrefecto += extra.totalSufragantes;
+              }
+            }
+          }
+        }
+
+        result.add(AvanceRecintoEntity(
+          precinctId: p.id,
+          precinctName: p.nombreRecinto,
+          provincia: p.provincia,
+          canton: p.canton,
+          parroquia: p.parroquia,
+          totalMesas: totalMesas,
+          mesasCompletadas: completadas,
+          mesasPendientes: pendientes,
+          porcentajeCompletado: totalMesas == 0
+              ? 0
+              : (completadas / totalMesas) * 100,
+          votosAlcalde: votosAlcalde,
+          votosPrefecto: votosPrefecto,
+        ));
+      }
+
+      return Right(result);
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ProvincialActaDetailEntity>> getActaDetail(
+      String actId) async {
+    try {
+      final act = await _db.actsDao.getActById(actId);
+      if (act == null) {
+        return const Left(NotFoundFailure(message: 'Acta no encontrada.'));
+      }
+
+      final table =
+          await _db.precinctsDao.getTableById(act.tableId);
+      final precinct = table != null
+          ? await _db.precinctsDao.getPrecinctById(table.precinctId)
+          : null;
+
+      final votesRows = await _db.actsDao.getVotesByAct(actId);
+      final extraVotes =
+          await _db.actsDao.getExtraVotesByAct(actId);
+
+      final votosDetalle = <VotoCandidatoDetalleEntity>[];
+      for (final v in votesRows) {
+        final candidateRow = await (_db.select(_db.candidatesTable)
+              ..where((c) => c.id.equals(v.candidateId)))
+            .getSingleOrNull();
+        final orgRow = candidateRow != null
+            ? await (_db.select(_db.organizationsTable)
+                  ..where((o) => o.id.equals(candidateRow.organizationId)))
+                .getSingleOrNull()
+            : null;
+
+        votosDetalle.add(VotoCandidatoDetalleEntity(
+          candidateName: candidateRow?.nombre ?? '—',
+          organizationName: orgRow?.nombre ?? '—',
+          colorHex: orgRow?.color ?? '#888888',
+          cantidad: v.cantidadVotos,
+        ));
+      }
+
+      String? veedorNombre;
+      String? veedorCedula;
+      if (table != null && table.veedorId != null) {
+        final veedor =
+            await _db.usersDao.getUserById(table.veedorId!);
+        if (veedor != null) {
+          veedorNombre = '${veedor.nombres} ${veedor.apellidos}';
+          veedorCedula = veedor.cedula;
+        }
+      }
+
+      return Right(ProvincialActaDetailEntity(
+        actId: act.id,
+        tipoDignidad: act.tipoDignidad,
+        estado: act.estado,
+        mesaJrv: table?.jrvNumber ?? 0,
+        precinctName: precinct?.nombreRecinto ?? '—',
+        votos: votosDetalle,
+        votosBlancos: extraVotes?.votosBlancos ?? 0,
+        votosNulos: extraVotes?.votosNulos ?? 0,
+        totalSufragantes: extraVotes?.totalSufragantes ?? 0,
+        photoUrl: act.photoUrl,
+        localPhotoPath: act.localPhotoPath,
+        gpsLatitude: act.gpsLatitude,
+        gpsLongitude: act.gpsLongitude,
+        createdAt: act.createdAt,
+        updatedAt: act.updatedAt,
+        veedorNombre: veedorNombre,
+        veedorCedula: veedorCedula,
+      ));
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> createPrecinct({
+    required String provincia,
+    required String canton,
+    required String parroquia,
+    required String nombreRecinto,
+    required int numeroJrv,
+  }) async {
+    try {
+      final id = const Uuid().v4();
+      final now = DateTime.now();
+
+      await _db.transaction(() async {
+        await _db.precinctsDao.upsertPrecinct(
+          PrecinctsTableCompanion.insert(
+            id: id,
+            provincia: provincia,
+            canton: canton,
+            parroquia: parroquia,
+            nombreRecinto: nombreRecinto,
+            numeroJrv: numeroJrv,
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+
+        await _db.precinctsDao.createTablesForPrecinct(
+          precinctId: id,
+          numeroJrv: numeroJrv,
+        );
+      });
+
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<AvanceRecintoEntity>>> getAllPrecincts() async {
+    return getAvancePorRecinto();
+  }
+
+  @override
+  Future<Either<Failure, List<PrecinctCoordinatorEntity>>>
+      getCoordinadoresRecinto() async {
+    try {
+      final rows = await _db.usersDao.getUsersByRole(
+        AppConstants.roleRecinto,
+      );
+      return Right(
+        rows
+            .map((u) => PrecinctCoordinatorEntity(
+                  id: u.id,
+                  cedula: u.cedula,
+                  nombres: u.nombres,
+                  apellidos: u.apellidos,
+                  correo: u.correo,
+                  precinctId: u.precinctId,
+                ))
+            .toList(),
+      );
     } catch (e) {
       return Left(CacheFailure(message: e.toString()));
     }

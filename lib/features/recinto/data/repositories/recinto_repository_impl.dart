@@ -143,6 +143,7 @@ class RecintoRepositoryImpl implements RecintoRepository {
         collectionName: AppConstants.colTables,
         documentId: tableId,
         payload: payload,
+        permissions: await _buildCoordinatorPerms(),
       );
 
       _syncService.syncNow();
@@ -155,10 +156,8 @@ class RecintoRepositoryImpl implements RecintoRepository {
   @override
   Future<Either<Failure, void>> unassignTable({required String tableId}) async {
     try {
-      // Establecer veedorId a null en DB Local
       await _db.precinctsDao.assignVeedorToTable(tableId, null);
 
-      // Encolar actualización para Appwrite
       final payload = {
         'veedor_id': null,
         'estado_acta': 'pendiente',
@@ -169,11 +168,18 @@ class RecintoRepositoryImpl implements RecintoRepository {
         collectionName: AppConstants.colTables,
         documentId: tableId,
         payload: payload,
+        permissions: await _buildCoordinatorPerms(),
       );
 
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(message: e.toString()));
     }
+  }
+
+  Future<List<String>> _buildCoordinatorPerms() async {
+    final userId = await _getCurrentUserId();
+    if (userId == null) return [];
+    return AppwriteService.permissionsRecintoCoordinator(userId);
   }
 }

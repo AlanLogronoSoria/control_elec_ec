@@ -71,6 +71,28 @@ class AppwriteService {
   }
 
   void _assertInitialized() {
-    assert(_initialized, 'AppwriteService no ha sido inicializado. Llama initialize() en main.dart.');
+    assert(_initialized,
+        'AppwriteService no ha sido inicializado. Llama initialize() en main.dart.');
   }
+
+  // ── RBAC / Permissions ─────────────────────────────────────────────────
+
+  /// Construye permisos para un veedor: solo él lee y actualiza sus actas.
+  static List<String> permissionsVeedor(String veedorUserId) => [
+        Permission.read(Role.user(veedorUserId)),
+        Permission.update(Role.user(veedorUserId)),
+      ];
+
+  /// Construye permisos para un coordinador de recinto.
+  static List<String> permissionsRecintoCoordinator(String coordinatorId) => [
+        Permission.read(Role.user(coordinatorId)),
+        Permission.update(Role.user(coordinatorId)),
+      ];
+
+  /// Construye permisos para documento de usuario nuevo: el usuario creado
+  /// podrá leer su propio documento tras iniciar sesión.
+  static List<String> permissionsUserDocument(String newUserId) => [
+        Permission.read(Role.user(newUserId)),
+        Permission.update(Role.user(newUserId)),
+      ];
 }
